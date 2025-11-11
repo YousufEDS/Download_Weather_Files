@@ -64,8 +64,24 @@ def match_city_file(city, all_files, City=None):
     return '', ''
 
 
+def create_combined_zip(result_rows):
+    """Create a combined ZIP in memory from all found weather files."""
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zf:
+        for row in result_rows:
+            if row["Status"] == "Found" and row["Weather File Url"]:
+                try:
+                    r = requests.get(row["Weather File Url"], timeout=60)
+                    r.raise_for_status()
+                    zf.writestr(row["Weather File-zip"], r.content)
+                except Exception as e:
+                    st.warning(f"Failed to add {row['Weather File-zip']}: {e}")
+    zip_buffer.seek(0)
+    return zip_buffer
+
+
 def main():
-    st.title("Weather Files Selector")
+    st.title("🌦️ Weather Files Selector")
     st.write("Select one weather .zip file for each City. You can download your selection as an Excel or as a combined ZIP file.")
 
     # Load country-region mapping
@@ -78,14 +94,15 @@ def main():
         st.error(f"Failed to load country-region mapping: {e}")
         return
 
-    uploaded = st.file_uploader("Upload Excel file", type=["xlsx"], key="excel_upload")
+    # Upload Excel file
+    uploaded = st.file_uploader("📂 Upload Excel file", type=["xlsx"], key="excel_upload")
     if not uploaded:
         st.info("Please upload an Excel file to begin.")
         return
 
     df = pd.read_excel(uploaded)
 
-    # Find columns
+    # Find 'City' and 'Country' columns
     city_col = None
     country_col = None
     for col in df.columns:
@@ -118,7 +135,7 @@ def main():
         City_files, all_files = fetch_City_files(url)
         all_country_files[country] = all_files
 
-    # Match files
+    # Helper for matching filenames
     def city_in_filename(city, filename):
         city_norm = re.sub(r'[^a-z0-9]', '', city.lower())
         filename_norm = re.sub(r'[^a-z0-9]', '', filename.lower())
@@ -128,6 +145,7 @@ def main():
     mapped_cities = set()
     cities_with_options = set()
 
+    # Auto-match available files
     for city, country in city_country_pairs:
         all_files = all_country_files.get(country)
         if not all_files:
@@ -145,8 +163,9 @@ def main():
                 selected_files[(city, country)] = file_options[file_names[0]]
                 mapped_cities.add((city, country))
 
-    # Manual selection
-    unmapped_cities = [(city, country) for city, country in city_country_pairs if (city, country) not in mapped_cities and (city, country) in cities_with_options]
+    # Manual selection for ambiguous cases
+    unmapped_cities = [(city, country) for city, country in city_country_pairs
+                       if (city, country) not in mapped_cities and (city, country) in cities_with_options]
     manual_selected = {}
 
     import re as _re
@@ -165,7 +184,7 @@ def main():
 
     selected_files.update(manual_selected)
 
-    # Create result dataframe
+    # Prepare results
     result_rows = []
     for city, country in city_country_pairs:
         fileinfo = selected_files.get((city, country))
@@ -186,41 +205,33 @@ def main():
                 "Status": "Not found"
             })
     result_df = pd.DataFrame(result_rows)
+
     found_count = (result_df['Status'] == 'Found').sum()
     not_found_count = (result_df['Status'] == 'Not found').sum()
-
-    st.info(f"Mapped: {found_count} | Not mapped: {not_found_count}")
+    st.info(f"✅ Mapped: {found_count} | ⚠️ Not mapped: {not_found_count}")
 
     if not result_df.empty:
         st.header("Step 3: Your Selection Table")
         st.dataframe(result_df)
 
-        # Download all as a single ZIP (in memory)
-        if st.button("Download All Mapped Files as One ZIP"):
-            zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, "w") as zf:
-                for row in result_rows:
-                    if row["Status"] == "Found" and row["Weather File Url"]:
-                        try:
-                            r = requests.get(row["Weather File Url"], timeout=60)
-                            r.raise_for_status()
-                            zf.writestr(row["Weather File-zip"], r.content)
-                        except Exception as e:
-                            st.warning(f"Failed to add {row['Weather File-zip']}: {e}")
-            zip_buffer.seek(0)
-            st.download_button(
-                label="Download Combined ZIP",
-                data=zip_buffer,
-                file_name="weather_files_bundle.zip",
-                mime="application/zip"
-            )
+        # --- Single Button: Download Combined ZIP ---
+        with st.spinner("Preparing combined ZIP file..."):
+            zip_buffer = create_combined_zip(result_rows)
 
-        # Excel download
+        st.download_button(
+            label="⬇️ Download All Mapped Files as Combined ZIP",
+            data=zip_buffer,
+            file_name="weather_files_bundle.zip",
+            mime="application/zip",
+            help="Click to download all mapped weather files as a single ZIP archive. It will be saved in your browser’s Downloads folder."
+        )
+
+        # --- Excel Download ---
         towrite = io.BytesIO()
         result_df.to_excel(towrite, index=False)
         towrite.seek(0)
         st.download_button(
-            "Download Selection as Excel",
+            "📥 Download Selection as Excel",
             towrite,
             file_name=f"selected_weather_files.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
