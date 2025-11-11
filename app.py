@@ -97,7 +97,7 @@ def main():
     # Upload Excel file
     uploaded = st.file_uploader(" Upload Excel file", type=["xlsx"], key="excel_upload")
     if not uploaded:
-    st.info("Please upload an Excel file with 'Country' and 'City' columns to extract the weather files for those locations.")        
+        st.info("Please upload an Excel file with 'Country' and 'City' columns to extract the weather files for those locations.")        
         return
 
     df = pd.read_excel(uploaded)
@@ -240,4 +240,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
