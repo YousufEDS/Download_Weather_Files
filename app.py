@@ -81,7 +81,7 @@ def create_combined_zip(result_rows):
 
 
 def main():
-    st.title("🌦️ Weather Files Selector")
+    st.title("Weather Files Selector")
     st.write("Select one weather .zip file for each City. You can download your selection as an Excel or as a combined ZIP file.")
 
     # Load country-region mapping
@@ -95,9 +95,9 @@ def main():
         return
 
     # Upload Excel file
-    uploaded = st.file_uploader("📂 Upload Excel file", type=["xlsx"], key="excel_upload")
+    uploaded = st.file_uploader(" Upload Excel file", type=["xlsx"], key="excel_upload")
     if not uploaded:
-        st.info("Please upload an Excel file to begin.")
+    st.info("Please upload an Excel file with 'Country' and 'City' columns to extract the weather files for those locations.")        
         return
 
     df = pd.read_excel(uploaded)
@@ -208,7 +208,7 @@ def main():
 
     found_count = (result_df['Status'] == 'Found').sum()
     not_found_count = (result_df['Status'] == 'Not found').sum()
-    st.info(f"✅ Mapped: {found_count} | ⚠️ Not mapped: {not_found_count}")
+    st.info(f" Mapped: {found_count} | Not mapped: {not_found_count}")
 
     if not result_df.empty:
         st.header("Step 3: Your Selection Table")
@@ -219,7 +219,7 @@ def main():
             zip_buffer = create_combined_zip(result_rows)
 
         st.download_button(
-            label="⬇️ Download All Mapped Files as Combined ZIP",
+            label=" Download All Mapped Files as Combined ZIP",
             data=zip_buffer,
             file_name="weather_files_bundle.zip",
             mime="application/zip",
@@ -240,3 +240,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
