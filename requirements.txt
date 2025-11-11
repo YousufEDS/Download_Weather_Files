@@ -1,0 +1,5 @@
+streamlit 
+request
+BeautifulSoap
+pandas
+io
