@@ -1,5 +1,4 @@
-streamlit 
-request
-BeautifulSoap
+streamlit
+requests
+beautifulsoup4
 pandas
-io
